@@ -68,7 +68,7 @@ function resolveAllInternal(obj,context,options) {
     return obj;
 }
 
-function resolveExternal(root, pointer, options, callback) {
+function resolveExternalRef(root, pointer, options, callback) {
     let u = url.parse(options.source);
     let base = options.source.split('\\').join('/').split('/');
     let doc = base.pop(); // drop the actual filename
@@ -157,6 +157,40 @@ function resolveExternal(root, pointer, options, callback) {
 
 }
 
+// Pulls in content as pointed to by file. Does not attempt to parse in any way.
+function resolveExternalValue(root, pointer, options, callback) {
+    let u = url.parse(pointer);
+    let protocol = u.protocol;
+    if (options.verbose) console.log('GET', pointer);
+
+    if (protocol && protocol.startsWith('http')) {
+        return fetch(pointer, {agent:options.agent})
+            .then(function (res) {
+                if (res.status !== 200) throw new Error(`Received status code ${res.status}`);
+                return res.text();
+            })
+            .then(function (data) {
+                callback(data,pointer);
+                return data;
+            })
+            .catch(function (err) {
+                if (options.verbose) console.warn(err);
+            });
+    }
+    else {
+        return readFileAsync(pointer, options.encoding || 'utf8')
+            .then(function(data){
+                callback(data,pointer);
+                return data;
+            })
+            .catch(function(err){
+                console.warn(err.message);
+                if (options.promise) options.promise.reject(err);
+            });
+    }
+
+}
+
 const parameterTypeProperties = [
     'format',
     'minimum',
@@ -210,6 +244,10 @@ function isRef(obj,key) {
     return ((key === '$ref') && (typeof obj[key] === 'string'));
 }
 
+function isExternalValue(obj,key) {
+    return ((key === 'externalValue') && (typeof obj[key] === 'string'));
+}
+
 module.exports = {
 
     clone: clone,
@@ -218,13 +256,15 @@ module.exports = {
     recurse: recurse,
     hash: hash,
     getVersion: getVersion,
-    resolveExternal: resolveExternal,
+    resolveExternalRef: resolveExternalRef,
+    resolveExternalValue: resolveExternalValue,
     resolveInternal: jptr,
     parameterTypeProperties: parameterTypeProperties,
     arrayProperties: arrayProperties,
     httpVerbs: httpVerbs,
     sanitise: sanitise,
     sanitiseAll: sanitiseAll,
-    isRef: isRef
+    isRef: isRef,
+    isExternalValue: isExternalValue
 
 };

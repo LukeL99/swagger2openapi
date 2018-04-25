@@ -1222,7 +1222,7 @@ function findExternalRefs(master, options, actions) {
         if (common.isRef(obj,key)) {
             if (!obj[key].startsWith('#')) {
                 options.context.push(state.path);
-                actions.push(common.resolveExternal(master, obj[key], options, function (data, newSource) {
+                actions.push(common.resolveExternalRef(master, obj[key], options, function (data, newSource) {
                     state.parent[state.pkey] = findExternalRefs(data,options,actions);
                 }));
                 options.context.pop();
